@@ -30,7 +30,8 @@ input_type = '.' + args.input_type
 with open(args.input_csv) as f:
     reader = csv.DictReader(f)
     for row in reader:
-        filename = row['frame_id']
+        # filename = row['frame_id']
+        filename = row['timestamp']
         files.append(filename)
 
 last = []
@@ -42,7 +43,7 @@ for i, filename in enumerate(files):
     prev_image = img
     prev = cv2.cvtColor(prev, cv2.COLOR_RGB2GRAY)
     next = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    flow = cv2.calcOpticalFlowFarneback(prev, next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+    flow = cv2.calcOpticalFlowFarneback(prev, next, 0.5, 3, 15, 3, 5, 1.2, 0)
 
     last.append(flow)
     if len(last) > args.window_size:

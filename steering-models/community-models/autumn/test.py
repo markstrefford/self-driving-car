@@ -28,10 +28,10 @@ class AutumnModel(object):
         self.x = self.cnn.x
         self.keep_prob = self.cnn.keep_prob
 
-        with open(lstm_json, 'r') as f:
-            json_string = f.read()
-        self.model = model_from_json(json_string)
-        self.model.load_weights(lstm_weights)
+        # with open(lstm_json, 'r') as f:
+        #     json_string = f.read()
+        # self.model = model_from_json(json_string)
+        # self.model.load_weights(lstm_weights)
 
         self.prev_image = None
         self.last = []
@@ -43,7 +43,7 @@ class AutumnModel(object):
         prev = cv2.cvtColor(prev_image, cv2.COLOR_RGB2GRAY)
         next = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
 
-        flow = cv2.calcOpticalFlowFarneback(prev, next, None, 0.5, 3, 15, 3, 5, 1.2, 0)
+        flow = cv2.calcOpticalFlowFarneback(prev, next, 0.5, 3, 15, 3, 5, 1.2, 0)
 
         self.last.append(flow)
 
@@ -70,11 +70,11 @@ class AutumnModel(object):
         cv2.imshow("Flow", img)
         cv2.waitKey(1)
         image = scipy.misc.imresize(img[-400:], [66, 200]) / 255.0
-        cnn_output = self.fc3.eval(feed_dict={self.x: [image], self.keep_prob: 1.0})
+        cnn_output = self.fc3.eval(session = self.sess, feed_dict={self.x: [image], self.keep_prob: 1.0})
         self.steps.append(cnn_output)
         if len(self.steps) > 100:
             self.steps.pop(0)
-        output = self.y.eval(feed_dict={self.x: [image], self.keep_prob: 1.0})
+        output = self.y.eval(session = self.sess, feed_dict={self.x: [image], self.keep_prob: 1.0})
         angle = output[0][0]
         return angle
 
@@ -85,7 +85,7 @@ if __name__ == '__main__':
     parser.add_argument('--output', '-o', action='store', dest='output_file',
                         default='output-cnn.csv', help='Output csv file name')
     parser.add_argument('--data-dir', '--data', action='store', dest='data_dir',
-                        default='/vol/data/Ch2_Test/center')
+                        default='/vol/test/')
     parser.add_argument('--cnn-graph', '--cnn-meta', action='store', dest='cnn_graph',
                         default='autumn-cnn-model-tf.meta')
     parser.add_argument('--lstm-json', '--lstm-meta', action='store', dest='lstm_json',
@@ -116,7 +116,7 @@ if __name__ == '__main__':
                     if limit < 0:
                         break
 
-                    filename = row['frame_id'] + '.jpg'
+                    filename = row['filename']  # + '.jpg'
                     full_image = scipy.misc.imread(args.data_dir + "/" + filename, mode="RGB")
                     result = process(predictor, full_image)
 

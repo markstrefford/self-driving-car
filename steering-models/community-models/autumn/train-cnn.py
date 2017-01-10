@@ -69,27 +69,31 @@ def main():
 
     for i in range(start_step, start_step + args.num_steps):
         xs, ys = data_reader.load_train_batch(args.batch_size)
-        train_step.run(feed_dict={model.x: xs, model.y_: ys, model.keep_prob: args.keep_prob})
-        train_error = loss.eval(feed_dict={model.x: xs, model.y_: ys, model.keep_prob: 1.0})
+        train_step.run(session=sess, feed_dict={model.x: xs, model.y_: ys, model.keep_prob: args.keep_prob})
+        train_error = loss.eval(session=sess, feed_dict={model.x: xs, model.y_: ys, model.keep_prob: 1.0})
         print("Step %d, train loss %g" % (i, train_error))
 
         if i % 10 == 0:
             xs, ys = data_reader.load_val_batch(args.batch_size)
-            val_error = loss.eval(feed_dict={model.x: xs, model.y_: ys, model.keep_prob: 1.0})
+            val_error = loss.eval(session=sess, feed_dict={model.x: xs, model.y_: ys, model.keep_prob: 1.0})
             print("Step %d, val loss %g" % (i, val_error))
             if i > 0 and i % args.checkpoint_every == 0:
                 if not os.path.exists(args.logdir):
                     os.makedirs(args.logdir)
-                    checkpoint_path = os.path.join(args.logdir, "model-step-%d-val-%g.ckpt" % (i, val_error))
-                    filename = saver.save(sess, checkpoint_path)
-                    print("Model saved in file: %s" % filename)
-                elif val_error < min_loss:
-                    min_loss = val_error
-                    if not os.path.exists(args.logdir):
-                        os.makedirs(args.logdir)
-                    checkpoint_path = os.path.join(args.logdir, "model-step-%d-val-%g.ckpt" % (i, val_error))
-                    filename = saver.save(sess, checkpoint_path)
-                    print("Model saved in file: %s" % filename)
+                checkpoint_path = os.path.join(args.logdir, "model-step-%d-val-%g.ckpt" % (i, val_error))
+                filename = saver.save(sess, checkpoint_path)
+                print("Model saved in file: %s" % filename)
+            elif val_error < min_loss:
+                min_loss = val_error
+                if not os.path.exists(args.logdir):
+                    os.makedirs(args.logdir)
+                checkpoint_path = os.path.join(args.logdir, "model-step-%d-val-%g.ckpt" % (i, val_error))
+                filename = saver.save(sess, checkpoint_path)
+                print("Model saved in file: %s" % filename)
 
 if __name__ == '__main__':
     main()
+
+
+#  python ./lib/python3.5/site-packages/tensorflow/contrib/learn/python/learn/utils/inspect_checkpoint.py
+# --file_name=/Users/hain/tmp/model-201612031626/model.ckpt.data-00000-of-00001

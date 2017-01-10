@@ -20,35 +20,37 @@ class DataReader(object):
         total = 0
         count01 = count005 = count002 = count0 = 0
 
-        with open('interpolated_center.csv') as f:
+        # with open('interpolated_center.csv') as f:
+        with open(DATA_DIR + 'train_center.csv') as f:
             reader = csv.DictReader(f)
             for row in reader:
+                #angle = float(row['steering_angle'])
                 angle = float(row['steering_angle'])
                 if angle > 0.1 or angle < -0.1 and random.random() > 0.2:
-                    xs.append(DATA_DIR + 'training/center/flow_7_cart/' + row['frame_id'] + FILE_EXT)
+                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count01 += 1
                 elif (angle > 0.05 or angle < -0.5) and random.random() > 0.2:
-                    xs.append(DATA_DIR + 'training/center/flow_7_cart/' + row['frame_id'] + FILE_EXT)
+                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count005 += 1
                 elif (angle > 0.02 or angle < -0.02) and random.random() > 0.7:
-                    xs.append(DATA_DIR + 'training/center/flow_7_cart/' + row['frame_id'] + FILE_EXT)
+                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count002 += 1
                 elif random.random() > 0.8:
-                    xs.append(DATA_DIR + 'training/center/flow_7_cart/' + row['frame_id'] + FILE_EXT)
+                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count0 += 1
                 total += 1
 
-        with open('train_center.csv') as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                angle = float(row['steering_angle'])
-                xs.append(DATA_DIR + 'Ch2_Train/center/flow_7_local/' + row['frame_id'] + FILE_EXT)
-                ys.append(row['steering_angle'])
-                total += 1
+        # with open(DATA_DIR + 'train_center.csv') as f:
+        #     reader = csv.DictReader(f)
+        #     for row in reader:
+        #         angle = float(row['steering_angle'])
+        #         xs.append(DATA_DIR + 'Ch2_Train/center/flow_7_local/' + row['timestamp'] + FILE_EXT)
+        #         ys.append(row['steering_angle'])
+        #         total += 1
 
         print('> 0.1 or < -0.1: ' + str(count01))
         print('> 0.05 or < -0.05: ' + str(count005))
@@ -103,7 +105,7 @@ class DataReader(object):
         with open('train_center.csv') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                xs.append(DATA_DIR + 'Ch2_Train/center/flow_7_local/' + row['frame_id'] + FILE_EXT)
+                xs.append(DATA_DIR + 'Ch2_Train/center/flow_7_local/' + row['timestamp'] + FILE_EXT)
                 ys.append(row['steering_angle'])
 
         c = list(zip(xs, ys))
@@ -127,7 +129,7 @@ class DataReader(object):
         with open('interpolated_center.csv') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                xs.append(DATA_DIR + 'output/left/flow_7_cart/' + row['frame_id'] + FILE_EXT)
+                xs.append(DATA_DIR + 'output/left/flow_7_cart/' + row['timestamp'] + FILE_EXT)
                 ys.append(row['steering_angle'])
 
         c = list(zip(xs, ys))
