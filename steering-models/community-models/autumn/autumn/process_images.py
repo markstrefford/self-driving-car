@@ -16,7 +16,7 @@ parser.add_argument('--data-dir', '--data', action='store', dest='data_dir',
 parser.add_argument('--input-csv', '--input', '-i', action='store', dest='input_csv',
                     default=INPUT_CSV, help='CSV file containing list of file names')
 parser.add_argument('--input-type', '--input-ext', action='store', dest='input_type',
-                    default='jpg', help='File type extension of input images')
+                    default='', help='File type extension of input images')
 parser.add_argument('--output-dir', '--output', '-o', action='store', dest='output_dir',
                     default=OUTPUT_DIR, help='Name of directory to store converted images in')
 parser.add_argument('--window-size', '--window', action='store', dest='window_size', default=WINDOW_SIZE)
@@ -25,13 +25,17 @@ parser.add_argument('--average-polar', action='store_true', dest='average_polar'
 args = parser.parse_args()
 
 files = []
-input_type = '.' + args.input_type
+if args.input_type != '':
+    input_type = '.' + args.input_type
+else:
+    input_type = ''
 
 with open(args.input_csv) as f:
     reader = csv.DictReader(f)
     for row in reader:
         # filename = row['frame_id']
-        filename = row['timestamp']
+        #filename = row['timestamp']
+        filename = row['filename']
         files.append(filename)
 
 last = []
@@ -62,7 +66,9 @@ for i, filename in enumerate(files):
         cv2.imshow('flow', bgr)
         cv2.waitKey(1)
 
-    if not os.path.exists(args.data_dir + '/' + args.output_dir):
-        os.makedirs(args.data_dir + '/' + args.output_dir)
-    cv2.imwrite(args.data_dir + '/' + args.output_dir + '/' + files[i] + '.png', bgr)
-    print('Saving to ' + args.data_dir + '/' + args.output_dir + '/' + files[i] + '.png')
+    out_directory = args.data_dir + '/' + args.output_dir
+    if not os.path.exists(out_directory):
+        print 'makedir: {}'.format(out_directory)
+        os.makedirs(out_directory)
+    cv2.imwrite(out_directory + '/' + str(i) + '.png', bgr)
+    print('Saving to ' + out_directory + '/' + str(i) + '.png')

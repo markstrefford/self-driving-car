@@ -5,7 +5,8 @@ import argparse
 
 BATCH_SIZE = 100
 DATA_DIR = '/vol/data'
-LOGDIR = './train_model'
+LOGDIR = './logs'
+CSV='data.csv'
 CHECKPOINT_EVERY = 100
 NUM_STEPS = int(1e5)
 CKPT_FILE = 'model.ckpt'
@@ -19,11 +20,11 @@ MOMENTUM = 0.9
 def get_arguments():
     parser = argparse.ArgumentParser(description='ConvNet training')
     parser.add_argument('--batch_size', type=int, default=BATCH_SIZE,
-                        help='Number of images in batch.')
+                        action='store', dest='batch_size', help='Number of images in batch.')
     parser.add_argument('--data_dir', '--data', type=str, default=DATA_DIR,
-                        help='The directory containing the training data.')
-    parser.add_argument('--store_metadata', type=bool, default=False,
-                        help='Storing debug information for TensorBoard.')
+                        action='store', dest='data_dir', help='The directory containing the training data.')
+    parser.add_argument('--data_csv', '--csv', type=str, default=CSV,
+                        action='store', dest='csv', help='The csv containing the training data.')
     parser.add_argument('--logdir', type=str, default=LOGDIR,
                         help='Directory for log files.')
     parser.add_argument('--restore_from', type=str, default=None,
@@ -49,26 +50,29 @@ def main():
     train_vars = tf.trainable_variables()
     loss = tf.sqrt(tf.reduce_mean(tf.square(tf.sub(model.y_, model.y)))) + tf.add_n([tf.nn.l2_loss(v) for v in train_vars]) * args.l2_reg
     train_step = tf.train.AdamOptimizer(args.learning_rate).minimize(loss)
+    #tf.scalar_summary("loss", loss)
 
     sess.run(tf.initialize_all_variables())
-    saver = tf.train.Saver()
+    # train_writer = tf.train.SummaryWriter(LOGDIR, sess.graph)
 
     start_step = 0
+
+
+    tf.scalar_summary("loss", loss)
+    merged_summary_op = tf.merge_all_summaries()
+    saver = tf.train.Saver()
     if args.restore_from is not None:
         saver.restore(sess, args.logdir + '/' + args.restore_from)
         start_step = float(args.restore_from.split('step-')[0].split('-')[-1])
         print('Model restored from ' + args.logdir + '/' + args.restore_from)
-
-    if args.store_metadata:
-        tf.scalar_summary("loss", loss)
-        merged_summary_op = tf.merge_all_summaries()
-        summary_writer = tf.train.SummaryWriter(args.logdir, graph=tf.get_default_graph())
+    summary_writer = tf.train.SummaryWriter(args.logdir, graph=tf.get_default_graph())
 
     min_loss = 1.0
-    data_reader = DataReader()
+    data_reader = DataReader(args.data_dir, args.csv, )
 
     for i in range(start_step, start_step + args.num_steps):
         xs, ys = data_reader.load_train_batch(args.batch_size)
+        # print ys
         train_step.run(session=sess, feed_dict={model.x: xs, model.y_: ys, model.keep_prob: args.keep_prob})
         train_error = loss.eval(session=sess, feed_dict={model.x: xs, model.y_: ys, model.keep_prob: 1.0})
         print("Step %d, train loss %g" % (i, train_error))
@@ -91,9 +95,16 @@ def main():
                 filename = saver.save(sess, checkpoint_path)
                 print("Model saved in file: %s" % filename)
 
+        # write logs at every iteration
+        summary = merged_summary_op.eval(session=sess, feed_dict={model.x:xs, model.y_: ys, model.keep_prob: 1.0})
+        summary_writer.add_summary(summary, i)  # epoch * batch_size + i)
+
+    # Training has finished
+    checkpoint_path = os.path.join(args.logdir, "model-final-step-%d-val-%g.ckpt" % (i, val_error))
+    filename = saver.save(sess, checkpoint_path)
+    print("Final model saved in file: %s" % filename)
+    tf.scalar_summary("loss", loss)
+    merged_summary_op = tf.merge_all_summaries()
+
 if __name__ == '__main__':
     main()
-
-
-#  python ./lib/python3.5/site-packages/tensorflow/contrib/learn/python/learn/utils/inspect_checkpoint.py
-# --file_name=/Users/hain/tmp/model-201612031626/model.ckpt.data-00000-of-00001

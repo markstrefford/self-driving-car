@@ -1,13 +1,20 @@
 import scipy.misc
 import random
 import csv
+import os
+import cv2
 
 DATA_DIR = '/vol/data/'
 FILE_EXT = '.png'
+CSV = 'data.csv'
 
 
 class DataReader(object):
-    def __init__(self, data_dir=DATA_DIR, file_ext=FILE_EXT, sequential=False):
+    def __init__(self, data_dir=DATA_DIR, data_csv=CSV, file_ext=FILE_EXT, sequential=False):
+        self.data_dir = data_dir
+        self.data_csv = data_csv
+        self.file_ext = file_ext
+        self.sequential = sequential
         self.load()
 
     def load(self):
@@ -21,25 +28,27 @@ class DataReader(object):
         count01 = count005 = count002 = count0 = 0
 
         # with open('interpolated_center.csv') as f:
-        with open(DATA_DIR + 'train_center.csv') as f:
+        with open(os.path.join(self.data_dir, self.data_csv)) as f:
             reader = csv.DictReader(f)
             for row in reader:
                 #angle = float(row['steering_angle'])
-                angle = float(row['steering_angle'])
+                angle = float(row['steering_angle_rad'])
+                # Hack as data.csv doesn't have a proper timestamp column
+                row['timestamp'] = str(total)
                 if angle > 0.1 or angle < -0.1 and random.random() > 0.2:
-                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
+                    xs.append(self.data_dir + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count01 += 1
                 elif (angle > 0.05 or angle < -0.5) and random.random() > 0.2:
-                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
+                    xs.append(self.data_dir + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count005 += 1
                 elif (angle > 0.02 or angle < -0.02) and random.random() > 0.7:
-                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
+                    xs.append(self.data_dir + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count002 += 1
                 elif random.random() > 0.8:
-                    xs.append(DATA_DIR + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
+                    xs.append(self.data_dir + '/flow_7_local/' + row['timestamp'] + FILE_EXT)
                     ys.append(row['steering_angle'])
                     count0 += 1
                 total += 1
@@ -78,7 +87,9 @@ class DataReader(object):
         y_out = []
         for i in range(0, batch_size):
             image = scipy.misc.imread(self.train_xs[(self.train_batch_pointer + i) % self.num_train_images])
-            x_out.append(scipy.misc.imresize(image[-400:], [66, 200]) / 255.0)
+            cv2.imshow("Train ", image)
+            cv2.waitKey(1)
+            x_out.append(scipy.misc.imresize(image, [66, 200]) / 255.0)
             y_out.append([self.train_ys[(self.train_batch_pointer + i) % self.num_train_images]])
         self.train_batch_pointer += batch_size
         return x_out, y_out

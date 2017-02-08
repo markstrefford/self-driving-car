@@ -1,19 +1,22 @@
-# import rospy
-# from steering_node import SteeringNode
 
 from collections import deque
 import argparse
 import csv
 import scipy.misc
 import cv2
-import numpy as np
 
 import tensorflow as tf
 from keras import backend as K
 from keras.models import *
 from keras.layers import *
 from keras.layers.recurrent import LSTM
+import numpy as np
 from autumn import ConvModel
+from subprocess import call
+
+deg_to_rad = scipy.pi / 180.0
+rad_to_deg = 180.0 / scipy.pi
+predicted_angles = []
 
 
 class AutumnModel(object):
@@ -22,7 +25,7 @@ class AutumnModel(object):
         self.cnn = ConvModel(batch_norm=False, is_training=True)
         loss = tf.sqrt(tf.reduce_mean(tf.square(tf.sub(self.cnn.y_, self.cnn.y))))
         saver = tf.train.Saver()
-        saver.restore(self.sess, args.cnn_weights)
+        saver.restore(self.sess, cnn_weights)
 
         self.fc3 = self.cnn.fc3
         self.y = self.cnn.y
@@ -70,13 +73,13 @@ class AutumnModel(object):
         img = self.process(img)
         cv2.imshow("Flow", img)
         cv2.waitKey(1)
-        image = scipy.misc.imresize(img[-400:], [66, 200]) / 255.0
-        # cnn_output = self.fc3.eval(session = self.sess, feed_dict={self.x: [image], self.keep_prob: 1.0})
-        # self.steps.append(cnn_output)
-        # if len(self.steps) > 100:
-        #     self.steps.pop(0)
+        image = scipy.misc.imresize(img, [66, 200]) / 255.0
+        #cnn_output = self.fc3.eval(session = self.sess, feed_dict={self.x: [image], self.keep_prob: 1.0})
+        #self.steps.append(cnn_output)
+        #if len(self.steps) > 100:
+        #    self.steps.pop(0)
         output = self.y.eval(session = self.sess, feed_dict={self.x: [image], self.keep_prob: 1.0})
-        angle = output[0][0]
+        angle = output[0][0] * rad_to_deg
         return angle
 
 if __name__ == '__main__':
@@ -107,6 +110,9 @@ if __name__ == '__main__':
     def test():
         output_file = args.output_file
         limit = 100000
+        smoothed_angle = 0
+        i = 0
+
         predictor = make_predictor()
         with open(args.input_file) as f:
             with open(output_file, 'w') as csvfile:
@@ -118,33 +124,51 @@ if __name__ == '__main__':
                         break
 
                     filename = row['filename']  # + '.jpg'
-                    full_image = scipy.misc.imread(args.data_dir + "/" + filename, mode="RGB")
-                    result = process(predictor, full_image)
+                    steering_angle = float(row['steering_angle'])  # From CSV (deg for nvidia, rad for
 
-                    img = cv2.imread('wheel.png', -1)
+                    full_image = scipy.misc.imread(args.data_dir + "/" + filename, mode="RGB")
+                    degrees = process(predictor, full_image)
+
+                    cv2.imshow('Predict Image', cv2.cvtColor(full_image, cv2.COLOR_RGB2BGR))
+
+                    smoothed_angle += 0.2 * pow(abs((degrees - smoothed_angle)), 2.0 / 3.0) * (degrees - smoothed_angle) / abs(degrees - smoothed_angle)
+                    # M = cv2.getRotationMatrix2D((cols / 2, rows / 2), -smoothed_angle, 1)
+                    # dst = cv2.warpAffine(img, M, (cols, rows))
+                    # predicted_angles.append((i, steering_angle, degrees))
+                    # cv2.imshow("steering wheel", dst)
+                    # cv2.waitKey(1)
+                    # i += 1
+
+                    img = cv2.imread('steering_wheel_image.jpg', -1)
                     #img = scipy.misc.imresize(img, 0.2)
                     height, width, _ = img.shape
-                    M = cv2.getRotationMatrix2D((width/2, height/2), result * 360.0 / scipy.pi, 1)
-                    dst = cv2.warpAffine(img, M, (width, height))
+                    M = cv2.getRotationMatrix2D((width/2, height/2), -smoothed_angle, 1)
+                    wheel = cv2.warpAffine(img, M, (width, height))
+                    cv2.imshow('Steering Wheel', wheel)
+                    i += 1
 
-                    # Create new image to avoid full_image and flow containing the steering wheel!
-                    render_image = np.zeros_like(full_image)
-                    render_image[:,:,:] = full_image[:,:,:]
-                    x_offset = (render_image.shape[1] - width) / 2
-                    y_offset = 300
-                    new_height = min(height, render_image.shape[0] - y_offset)
-                    for c in range(0, 3):
-                        alpha = dst[0:new_height, :, 3] / 255.0
-                        color = dst[0:new_height, :, c] * (alpha)
-                        beta = render_image[y_offset:y_offset+new_height, x_offset:x_offset+width, c] * (1.0 - alpha)
-                        render_image[y_offset:y_offset+new_height, x_offset:x_offset+width, c] = color + beta
+                    # x_offset = (full_image.shape[1] - width) / 2
+                    # y_offset = 300
+                    # new_height = min(height, full_image.shape[0] - y_offset)
+                    # for c in range(0, 3):
+                    #     alpha = dst[0:new_height, :, 3] / 255.0
+                    #     color = dst[0:new_height, :, c] * (alpha)
+                    #     beta = full_image[y_offset:y_offset+new_height, x_offset:x_offset+width, c] * (1.0 - alpha)
+                    #     full_image[y_offset:y_offset+new_height, x_offset:x_offset+width, c] = color + beta
 
-                    cv2.imshow("Output", cv2.cvtColor(render_image, cv2.COLOR_RGB2BGR))
+                    #cv2.imshow("Output", cv2.cvtColor(full_image, cv2.COLOR_RGB2BGR))
+
+                    call("clear")
+                    print("Timestamp: " + str(i))
+                    print("Predicted steering angle: " + str(degrees) + " degrees")
+                    print("Actual steering angle   : " + str(steering_angle) + " degrees")
+                    print("-------------------------------------------")
+                    print("Delta                   : " + str(float(degrees) - float(steering_angle)) + " degrees")
+
                     cv2.waitKey(1)
-                    print((result))  #, error))
+                    #print((result))  #, error))
                     limit -= 1
         print('Written to ' + output_file)
-
     test()
 
     # mode = SteeringNode(make_predictor, process)
